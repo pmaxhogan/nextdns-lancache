@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  start:
+    image: alpine:3.20
+    container_name: daily_script
+    hostname: daily-script
+
+    environment:
+      TZ: "America/Chicago"
+      CACHE_IP: "${CACHE_IP}"
+      NEXTDNS_API_KEY: "${NEXTDNS_API_KEY}"
+
+    volumes:
+      - ./script.sh:/script.sh
+      - ./config.template.json:/config.template.json
+
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        # Ensure the tools we need are present
+        apk add --no-cache bash curl jq git envsubst  > /dev/null
+
+        chmod +x /script.sh
+
+        # Run once
+        /script.sh
+
+        # Run every day at 02:00 AM (local time)
+        echo "0 2 * * * /bin/bash /script.sh" > /etc/crontabs/root
+
+        # Start cron in foreground so the container stays alive under TrueNAS
+        crond -f -l 8
+
+    restart: unless-stopped
