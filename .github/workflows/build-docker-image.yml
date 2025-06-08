@@ -73,4 +73,4 @@ jobs:
 
       # ------ Summary -----------------------------------------------------
       - name: Image digest
-        run: echo "Image pushed: ${{ steps.meta.outputs.tags }}"
+        run: echo 'Image pushed: ${{ steps.meta.outputs.tags }}'
