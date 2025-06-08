@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # --- Base image ------------------------------------------------------------
-FROM alpine:3.20
+FROM debian:12
 
 # --- Metadata --------------------------------------------------------------
 LABEL maintainer="Max Hogan <max@maxhogan.dev>" \
@@ -15,13 +15,12 @@ ENV TZ="America/Chicago"
 
 # --- Packages --------------------------------------------------------------
 # Add bash, curl, jq, git, envsubst, cron (busybox includes crond), tzdata for zone info
-RUN apk add --no-cache \
+RUN apt update && apt install -y cron gettext-base ca-certificates \
       bash \
       curl \
       jq \
       git \
-      envsubst \
-      tzdata && \
+      tzdata unzip wget && \
     # Set the local timezone inside the image
     cp /usr/share/zoneinfo/${TZ} /etc/localtime && \
     echo "${TZ}" > /etc/timezone
@@ -31,8 +30,10 @@ COPY script.sh /script.sh
 COPY config.template.json /config.template.json
 
 RUN chmod +x /script.sh && \
-    # Register the daily cron (02:00 container local time)
-    echo "0 2 * * * /bin/bash /script.sh" > /etc/crontabs/root
+# Register the daily cron (02:00 container local time)
+    echo "0 2 * * * root /bin/bash /script.sh" > /etc/cron.d/daily_script && \
+    chmod 0644 /etc/cron.d/daily_script && \
+    crontab /etc/cron.d/daily_script
 
 # --- Runtime environment variables (example) ------------------------------
 # These will be overridden at deploy time in TrueNAS, but documenting them

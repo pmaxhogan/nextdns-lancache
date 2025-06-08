@@ -115,3 +115,23 @@ echo "Configure nextdns at https://my.nextdns.io/$NEXTDNS_PROFILE/setup"
 echo
 echo "Set your DNS servers to:"
 nextdns_api "$NEXTDNS_PROFILE" -s | jq -r '.data.setup.linkedIp.servers[]'
+
+if [ -z $ENABLE_LANCACHE ] ; then
+	exit 0
+fi
+
+echo
+echo "Running lancache"
+curl -o update.sh --location "https://raw.githubusercontent.com/tpill90/steam-lancache-prefill/master/scripts/update.sh"
+chmod +x update.sh
+./update.sh
+chmod +x ./SteamPrefill
+
+check_var STEAM_ACCOUNT_CONFIG
+check_var STEAM_APPS
+
+mkdir -p Config
+echo "$STEAM_ACCOUNT_CONFIG" | base64 -d > Config/account.config
+echo "$STEAM_APPS" > Config/selectedAppsToPrefill.json
+
+./SteamPrefill prefill
