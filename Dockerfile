@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # --- Base image ------------------------------------------------------------
-FROM debian:12
+FROM debian:12-slim
 
 # --- Metadata --------------------------------------------------------------
 LABEL maintainer="Max Hogan <max@maxhogan.dev>" \
@@ -15,7 +15,7 @@ ENV TZ="America/Chicago"
 
 # --- Packages --------------------------------------------------------------
 # Add bash, curl, jq, git, envsubst, cron (busybox includes crond), tzdata for zone info
-RUN apt update && apt install -y cron gettext-base ca-certificates \
+RUN apt-get update && apt-get install -y --no-install-recommends cron gettext-base ca-certificates \
       bash \
       curl \
       jq \
@@ -23,7 +23,10 @@ RUN apt update && apt install -y cron gettext-base ca-certificates \
       tzdata unzip wget && \
     # Set the local timezone inside the image
     cp /usr/share/zoneinfo/${TZ} /etc/localtime && \
-    echo "${TZ}" > /etc/timezone
+    echo "${TZ}" > /etc/timezone; \
+# clean apt caches to keep the image small
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*;
 
 # --- Application files -----------------------------------------------------
 COPY script.sh /script.sh
@@ -35,15 +38,13 @@ RUN chmod +x /script.sh && \
     chmod 0644 /etc/cron.d/daily_script && \
     crontab /etc/cron.d/daily_script
 
-# --- Runtime environment variables (example) ------------------------------
 # These will be overridden at deploy time in TrueNAS, but documenting them
 ENV CACHE_IP="" \
     NEXTDNS_API_KEY=""
 
-# --- Entrypoint ------------------------------------------------------------
 # 1. Run the script immediately (first‑run)                                
 # 2. Launch cron in the foreground so the container stays healthy for TrueNAS
-ENTRYPOINT ["/bin/sh", "-ec", "/script.sh && crond -f -l 8"]
+ENTRYPOINT ["/bin/sh", "-ec", "/script.sh && exec /usr/sbin/crond -f"]
 
-# --- Default command (not strictly necessary; cron holds the PID) ---------
+# Default command (not strictly necessary; cron holds the PID)
 CMD []
